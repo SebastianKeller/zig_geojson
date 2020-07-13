@@ -230,12 +230,21 @@ pub const Parser = struct {
             },
         };
     }
-
 };
 
 test "simple feature" {
     var file_content = @embedFile("../test/simple_feature.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
+    geojson.deinit();
+}
+
+test "single geometry" {
+    var file_content = @embedFile("../test/polygon.json");
+    var geojson = try Parser.parse(file_content, std.heap.page_allocator);
+    std.testing.expect(switch (geojson.content.geometry) {
+        .polygon => true,
+        else => false,
+    });
     geojson.deinit();
 }
 
