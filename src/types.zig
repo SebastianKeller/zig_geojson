@@ -1,5 +1,18 @@
 const std = @import("std");
 
+pub const GeoJson = struct {
+    arena: std.heap.ArenaAllocator,
+    content: union(enum) {
+        feature: Feature,
+        featureCollection: FeatureCollection,
+        geometry: Geometry,
+    },
+
+    pub fn deinit(self: *GeoJson) void {
+        self.arena.deinit();
+    }
+};
+
 pub const Point = struct {
     x: f64,
     y: f64,
