@@ -26,7 +26,7 @@ pub const Parser = struct {
         child_allocator: *std.mem.Allocator,
     ) ErrorSet!types.GeoJson {
         var arena = std.heap.ArenaAllocator.init(child_allocator);
-        var allocator = &arena.allocator;
+        const allocator = &arena.allocator;
 
         const t = json.root.Object.get("type").?.String;
         if (std.mem.eql(u8, "Feature", t)) {
@@ -55,8 +55,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) ![]types.Feature {
-        var json_array = value.Array;
-        var features = try allocator.alloc(types.Feature, json_array.items.len);
+        const json_array = value.Array;
+        const features = try allocator.alloc(types.Feature, json_array.items.len);
         for (json_array.items) |item, idx| {
             features[idx] = try parseFeature(item, allocator);
         }
@@ -78,7 +78,7 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) ErrorSet!types.Geometry {
-        var t = value.Object.get("type").?.String;
+        const t = value.Object.get("type").?.String;
 
         if (std.mem.eql(u8, "Point", t)) {
             return types.Geometry{ .point = try parsePoint(value, allocator) };
@@ -112,7 +112,7 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.LineString {
-        var coordinates = value.Object.get("coordinates").?;
+        const coordinates = value.Object.get("coordinates").?;
         return types.LineString{ .points = try parsePoints(coordinates, allocator) };
     }
 
@@ -127,8 +127,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.MultiLineString {
-        var coordinates = value.Object.get("coordinates").?.Array;
-        var lineStrings = try allocator.alloc(types.LineString, coordinates.items.len);
+        const coordinates = value.Object.get("coordinates").?.Array;
+        const lineStrings = try allocator.alloc(types.LineString, coordinates.items.len);
         for (coordinates.items) |item, idx| {
             lineStrings[idx] = try parseLineStringRaw(item, allocator);
         }
@@ -139,8 +139,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.MultiPoligon {
-        var coordinates = value.Object.get("coordinates").?.Array;
-        var polygons = try allocator.alloc(types.Polygon, coordinates.items.len);
+        const coordinates = value.Object.get("coordinates").?.Array;
+        const polygons = try allocator.alloc(types.Polygon, coordinates.items.len);
         for (coordinates.items) |item, idx| {
             polygons[idx] = try parsePolygonRaw(item, allocator);
         }
@@ -151,8 +151,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.Polygon {
-        var array = value.Array;
-        var rings = try allocator.alloc(types.LinearRing, array.items.len);
+        const array = value.Array;
+        const rings = try allocator.alloc(types.LinearRing, array.items.len);
         for (array.items) |item, idx| {
             rings[idx] = try parseLinearRingRaw(item, allocator);
         }
@@ -163,8 +163,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.Polygon {
-        var coordinates = value.Object.get("coordinates").?.Array;
-        var rings = try allocator.alloc(types.LinearRing, coordinates.items.len);
+        const coordinates = value.Object.get("coordinates").?.Array;
+        const rings = try allocator.alloc(types.LinearRing, coordinates.items.len);
         for (coordinates.items) |item, idx| {
             rings[idx] = try parseLinearRingRaw(item, allocator);
         }
@@ -182,8 +182,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.GeometryCollection {
-        var array = value.Object.get("geometries").?.Array;
-        var geometries = try allocator.alloc(types.Geometry, array.items.len);
+        const array = value.Object.get("geometries").?.Array;
+        const geometries = try allocator.alloc(types.Geometry, array.items.len);
         for (array.items) |item, idx| {
             geometries[idx] = try parseGeometry(item, allocator);
         }
@@ -194,7 +194,7 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !types.Point {
-        var coordinates = value.Object.get("coordinates").?;
+        const coordinates = value.Object.get("coordinates").?;
         return parsePointRaw(coordinates);
     }
 
@@ -202,8 +202,8 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) ![]types.Point {
-        var array = value.Array;
-        var points = try allocator.alloc(types.Point, array.items.len);
+        const array = value.Array;
+        const points = try allocator.alloc(types.Point, array.items.len);
         for (array.items) |json, idx| {
             points[idx] = try parsePointRaw(json);
         }
@@ -211,9 +211,9 @@ pub const Parser = struct {
     }
 
     inline fn parsePointRaw(value: std.json.Value) !types.Point {
-        var array = value.Array;
-        var first = array.items[0];
-        var second = array.items[1];
+        const array = value.Array;
+        const first = array.items[0];
+        const second = array.items[1];
 
         return types.Point{ .x = try parseFloat(first), .y = try parseFloat(second) };
     }
@@ -233,13 +233,13 @@ pub const Parser = struct {
 };
 
 test "simple feature" {
-    var file_content = @embedFile("../test/simple_feature.json");
+    const file_content = @embedFile("../test/simple_feature.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
     geojson.deinit();
 }
 
 test "single geometry" {
-    var file_content = @embedFile("../test/polygon.json");
+    const file_content = @embedFile("../test/polygon.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
     std.testing.expect(switch (geojson.content.geometry) {
         .polygon => true,
@@ -249,19 +249,19 @@ test "single geometry" {
 }
 
 test "countries.json parse test" {
-    var file_content = @embedFile("../test/countries.json");
+    const file_content = @embedFile("../test/countries.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
     geojson.deinit();
 }
 
 test "all_geometries.json parse test" {
-    var file_content = @embedFile("../test/all_geometries.json");
+    const file_content = @embedFile("../test/all_geometries.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
     geojson.deinit();
 }
 
 test "leaks" {
-    var file_content = @embedFile("../test/all_geometries.json");
+    const file_content = @embedFile("../test/all_geometries.json");
     var geojson = try Parser.parse(file_content, std.testing.allocator);
     geojson.deinit();
 }
