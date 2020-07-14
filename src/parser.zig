@@ -39,7 +39,7 @@ pub const Parser = struct {
         if (std.mem.eql(u8, "FeatureCollection", t)) {
             const features = json.root.Object.get("features").?;
             return types.GeoJson{
-                .content = .{ .featureCollection = try parseFeatures(features, allocator) },
+                .content = .{ .feature_collection = try parseFeatures(features, allocator) },
                 .arena = arena,
             };
         }
@@ -69,9 +69,51 @@ pub const Parser = struct {
     ) !types.Feature {
         return types.Feature{
             .geometry = try parseGeometry(value.Object.get("geometry").?, allocator),
-            .properties = null,
+            .properties = try parseProperties(value.Object.get("properties"), allocator),
             .identifier = null,
         };
+    }
+
+    fn parseProperties(
+        value: ?std.json.Value,
+        allocator: *std.mem.Allocator,
+    ) !?std.StringHashMap(types.Value) {
+        if (value == null) {
+            return null;
+        } else {
+            const pValue = try parsePropertiesValue(value.?, allocator);
+            return pValue.object;
+        }
+    }
+
+    fn parsePropertiesValue(
+        value: std.json.Value,
+        allocator: *std.mem.Allocator,
+    ) ErrorSet!types.Value {
+        switch (value) {
+            .Null => return types.Value.@"null", //types.Value{ .@"null" = void },
+            .Bool => |b| return types.Value{ .bool = b },
+            .Integer => |i| return types.Value{ .int = i },
+            .Float => |f| return types.Value{ .float = f },
+            .String => |s| return types.Value{ .string = try std.mem.dupe(allocator, u8, s) },
+            .Array => |arr| {
+                const array = try allocator.alloc(types.Value, arr.items.len);
+                for (arr.items) |item, idx| {
+                    const pValue = try parsePropertiesValue(item, allocator);
+                    array[idx] = pValue;
+                }
+                return types.Value{ .array = array };
+            },
+            .Object => |o| {
+                var hashmap = std.StringHashMap(types.Value).init(allocator);
+                for (o.items()) |kv| {
+                    const gop = try hashmap.getOrPut(kv.key);
+                    const pValue = try parsePropertiesValue(kv.value, allocator);
+                    gop.entry.value = pValue;
+                }
+                return types.Value{ .object = hashmap };
+            },
+        }
     }
 
     fn parseGeometry(
@@ -235,7 +277,13 @@ pub const Parser = struct {
 test "simple feature" {
     const file_content = @embedFile("../test/simple_feature.json");
     var geojson = try Parser.parse(file_content, std.heap.page_allocator);
-    geojson.deinit();
+    defer geojson.deinit();
+
+    std.testing.expectEqual(geojson.feature().?.geometry.point.x, 125.6);
+    std.testing.expectEqual(geojson.feature().?.geometry.point.y, 10.1);
+
+    const gop = try geojson.feature().?.properties.?.getOrPut("name");
+    std.testing.expect(std.mem.eql(u8, gop.entry.value.string, "Dinagat Islands"));
 }
 
 test "single geometry" {

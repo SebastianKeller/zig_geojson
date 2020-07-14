@@ -4,9 +4,30 @@ pub const GeoJson = struct {
     arena: std.heap.ArenaAllocator,
     content: union(enum) {
         feature: Feature,
-        featureCollection: FeatureCollection,
+        feature_collection: FeatureCollection,
         geometry: Geometry,
     },
+
+    pub fn feature(self: @This()) ?Feature {
+        if (self.content == .feature) {
+            return self.content.feature;
+        }
+        return null;
+    }
+
+    pub fn featureCollection(self: @This()) ?FeatureCollection {
+        if (self.content == .feature_collection) {
+            return self.content.feature_collection;
+        }
+        return null;
+    }
+
+    pub fn geometry(self: @This()) ?Geometry {
+        if (self.content == .geometry) {
+            return self.content.geometry;
+        }
+        return null;
+    }
 
     pub fn deinit(self: *GeoJson) void {
         self.arena.deinit();
@@ -171,8 +192,9 @@ pub const GeometryCollection = struct {
 
 pub const Value = union(enum) {
     array: []Value,
+    @"null": void,
+    bool: bool,
     int: i64,
-    uint: u64,
     float: f64,
     string: []const u8,
     object: std.StringHashMap(Value),
@@ -180,7 +202,6 @@ pub const Value = union(enum) {
 
 pub const NullValue = struct {};
 pub const Identifier = union(enum) {
-    uint: u64,
     int: i64,
     float: f64,
     string: []const u8,
@@ -219,11 +240,12 @@ test "Point equals" {
 test "Value test" {
     var v = Value{ .int = 3 };
     switch (v) {
+        .@"null" => |n| return,
         .int => |i| std.testing.expectEqual(i, 3),
-        .uint => |i| std.testing.expectEqual(i, 3),
         .float => |i| std.testing.expectEqual(i, 3.0),
         .string => |i| std.testing.expectEqual(i, "123"),
         .object => |i| return,
         .array => |i| return,
+        .bool => |i| return,
     }
 }
