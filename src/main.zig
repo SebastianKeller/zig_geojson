@@ -29,10 +29,7 @@ pub const Parser = struct {
         var arena = std.heap.ArenaAllocator.init(child_allocator);
         const allocator = &arena.allocator;
 
-        const bbox = if (root.Object.get("bbox")) |value|
-            try parseBoundingBox(value, allocator)
-        else
-            null;
+        const bbox = try parseBoundingBox(root.Object.get("bbox"));
 
         if (root.Object.get("type")) |contentType| {
             const t = contentType.String;
@@ -68,21 +65,21 @@ pub const Parser = struct {
         };
     }
 
-    fn parseBoundingBox(
-        value: std.json.Value,
-        allocator: *std.mem.Allocator,
-    ) !BBox {
-        const json_array = value.Array;
-        return BBox{
-            .min = Point{
-                .x = try parseFloat(json_array.items[0]),
-                .y = try parseFloat(json_array.items[1]),
-            },
-            .max = Point{
-                .x = try parseFloat(json_array.items[2]),
-                .y = try parseFloat(json_array.items[3]),
-            },
-        };
+    fn parseBoundingBox(value: ?std.json.Value) !?BBox {
+        if (value) |v| {
+            const json_array = v.Array;
+            return BBox{
+                .min = Point{
+                    .x = try parseFloat(json_array.items[0]),
+                    .y = try parseFloat(json_array.items[1]),
+                },
+                .max = Point{
+                    .x = try parseFloat(json_array.items[2]),
+                    .y = try parseFloat(json_array.items[3]),
+                },
+            };
+        }
+        return null;
     }
 
     fn parseFeatures(
@@ -128,12 +125,10 @@ pub const Parser = struct {
         value: ?std.json.Value,
         allocator: *std.mem.Allocator,
     ) !?std.StringHashMap(PropertyValue) {
-        if (value == null) {
-            return null;
-        } else {
-            const pValue = try parsePropertiesValue(value.?, allocator);
-            return pValue.object;
-        }
+        return if (value) |v|
+            (try parsePropertiesValue(v, allocator)).object
+        else
+            null;
     }
 
     fn parsePropertiesValue(
