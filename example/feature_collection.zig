@@ -12,38 +12,32 @@ pub fn main() !void {
     if (geojson.featureCollection()) |features| {
         for (features) |feature| {
             const id = if (feature.id) |id| id.string else null;
-            try stdout.print("{} consists of {} points\n", .{ id, numberOfPoints(feature.geometry) });
+            try stdout.print("{}'s geometry is a {} containing {} points\n", .{
+                id,
+                @tagName(feature.geometry),
+                numberOfPoints(feature.geometry),
+            });
         }
     }
 }
 
-fn numberOfPoints(n: zig_geojson.Geometry) usize {
-    return switch (n) {
-        .point => 1,
-        .line_string, .multi_point => |x| sum1D(x),
-        .polygon => |x| sum2D(x),
-        .multi_polygon => |x| sum3D(x),
-        .multi_line_string => |x| sum2D(x),
-        .geometry_collection => |x| {
-            var sum: usize = 0;
-            for (x) |i| sum += numberOfPoints(i);
-            return sum;
-        },
+fn numberOfPoints(geometry: zig_geojson.Geometry) usize {
+    return switch (geometry) {
+        .point => |x| 1,
+        .line_string, .multi_point => |x| sum(x),
+        .polygon => |x| sum(x),
+        .multi_polygon => |x| sum(x),
+        .multi_line_string => |x| sum(x),
+        .geometry_collection => |x| sum(x),
     };
 }
 
-inline fn sum3D(n: [][][]zig_geojson.Point) usize {
-    var sum: usize = 0;
-    for (n) |i| sum += sum2D(i);
-    return sum;
-}
-
-inline fn sum2D(n: [][]zig_geojson.Point) usize {
-    var sum: usize = 0;
-    for (n) |i| sum += sum1D(i);
-    return sum;
-}
-
-inline fn sum1D(n: []zig_geojson.Point) usize {
-    return n.len;
+inline fn sum(n: anytype) usize {
+    const typeInfo = @typeInfo(@TypeOf(n));
+    if (typeInfo == .Pointer) {
+        var acc: usize = 0;
+        for (n) |i| acc += sum(i);
+        return acc;
+    }
+    return 1;
 }
