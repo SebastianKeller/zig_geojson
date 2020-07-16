@@ -13,7 +13,10 @@ pub fn build(b: *Builder) void {
     test_step.dependOn(&main_tests.step);
 
     const example_step = b.step("examples", "Build examples");
-    inline for ([_][]const u8{"simple_feature"}) |example_name| {
+    inline for ([_][]const u8{
+        "simple_feature",
+        "feature_collection",
+    }) |example_name| {
         const example = b.addExecutable(example_name, "example/" ++ example_name ++ ".zig");
         example.addPackagePath("zig_geojson", "src/main.zig");
         example.setBuildMode(mode);
