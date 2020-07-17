@@ -5,6 +5,7 @@ test "simple feature" {
     const json =
         \\{
         \\  "type": "Feature",
+        \\  "id": "simple feature",
         \\  "geometry": {
         \\    "type": "Point",
         \\    "coordinates": [125.6, 10.1]
@@ -17,6 +18,8 @@ test "simple feature" {
 
     std.testing.expect(geojson.content == .feature);
     const feature = geojson.feature().?;
+
+    std.testing.expectEqualStrings(feature.id.?.string, "simple feature");
 
     std.testing.expectEqual(feature.geometry.point, .{ .x = 125.6, .y = 10.1 });
 }
