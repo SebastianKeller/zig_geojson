@@ -1,7 +1,92 @@
 const std = @import("std");
 
-const ErrorSet = error{InvalidGeoJson} || @TypeOf(std.json.Parser.parse).ReturnType.ErrorSet;
+pub const ErrorSet = error{InvalidGeoJson} || @TypeOf(std.json.Parser.parse).ReturnType.ErrorSet;
 const log_tag = .zig_geojson;
+
+pub const GeoJson = struct {
+    arena: std.heap.ArenaAllocator,
+    bbox: ?BBox,
+    content: union(enum) {
+        empty: void,
+        feature: Feature,
+        feature_collection: FeatureCollection,
+        geometry: Geometry,
+    },
+
+    pub fn feature(self: @This()) ?Feature {
+        if (self.content == .feature) {
+            return self.content.feature;
+        }
+        return null;
+    }
+
+    pub fn featureCollection(self: @This()) ?FeatureCollection {
+        if (self.content == .feature_collection) {
+            return self.content.feature_collection;
+        }
+        return null;
+    }
+
+    pub fn geometry(self: @This()) ?Geometry {
+        if (self.content == .geometry) {
+            return self.content.geometry;
+        }
+        return null;
+    }
+
+    pub fn deinit(self: *GeoJson) void {
+        self.arena.deinit();
+    }
+};
+
+pub const BBox = struct {
+    min: Point,
+    max: Point,
+};
+
+pub const Feature = struct {
+    geometry: Geometry,
+    properties: ?std.StringHashMap(PropertyValue),
+    id: ?Identifier,
+};
+
+pub const FeatureCollection = []Feature;
+
+pub const Geometry = union(enum) {
+    @"null": void,
+    point: Point,
+    line_string: []Point,
+    polygon: Polygon,
+    multi_point: MultiPoint,
+    multi_line_string: MultiLineString,
+    multi_polygon: MultiPolygon,
+    geometry_collection: GeometryCollection,
+};
+
+pub const Point = struct { x: f64, y: f64 };
+pub const MultiPoint = []Point;
+pub const LineString = []Point;
+pub const MultiLineString = []LineString;
+pub const LinearRing = []Point;
+pub const Polygon = []LinearRing;
+pub const MultiPolygon = []Polygon;
+pub const GeometryCollection = []Geometry;
+
+pub const PropertyValue = union(enum) {
+    array: []PropertyValue,
+    @"null": void,
+    bool: bool,
+    int: i64,
+    float: f64,
+    string: []const u8,
+    object: std.StringHashMap(PropertyValue),
+};
+
+pub const Identifier = union(enum) {
+    int: i64,
+    float: f64,
+    string: []const u8,
+};
 
 pub const Parser = struct {
     pub fn parse(
@@ -98,37 +183,34 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !Feature {
+        const geometry = try parseGeometry(value.Object.get("geometry"), allocator);
+        const properties = if (value.Object.get("properties")) |p| try parseProperties(p, allocator) else null;
+        const id = if (value.Object.get("id")) |id| try parseIdentifier(id, allocator) else null;
+
         return Feature{
-            .geometry = try parseGeometry(value.Object.get("geometry").?, allocator),
-            .properties = try parseProperties(value.Object.get("properties"), allocator),
-            .id = try parseIdentifier(value.Object.get("id"), allocator),
+            .geometry = geometry,
+            .properties = properties,
+            .id = id,
         };
     }
 
     fn parseIdentifier(
-        value: ?std.json.Value,
+        value: std.json.Value,
         allocator: *std.mem.Allocator,
-    ) !?Identifier {
-        if (value) |v| {
-            return switch (v) {
-                .String => |s| Identifier{ .string = try std.mem.dupe(allocator, u8, s) },
-                .Integer => |i| Identifier{ .int = i },
-                .Float => |f| Identifier{ .float = f },
-                else => null,
-            };
-        }
-
-        return null;
+    ) !Identifier {
+        return switch (value) {
+            .String => |s| Identifier{ .string = try std.mem.dupe(allocator, u8, s) },
+            .Integer => |i| Identifier{ .int = i },
+            .Float => |f| Identifier{ .float = f },
+            else => error.InvalidGeoJson,
+        };
     }
 
     fn parseProperties(
-        value: ?std.json.Value,
+        value: std.json.Value,
         allocator: *std.mem.Allocator,
-    ) !?std.StringHashMap(PropertyValue) {
-        return if (value) |v|
-            (try parsePropertiesValue(v, allocator)).object
-        else
-            null;
+    ) !std.StringHashMap(PropertyValue) {
+        return (try parsePropertiesValue(value, allocator)).object;
     }
 
     fn parsePropertiesValue(
@@ -161,25 +243,32 @@ pub const Parser = struct {
     }
 
     fn parseGeometry(
-        value: std.json.Value,
+        value: ?std.json.Value,
         allocator: *std.mem.Allocator,
     ) ErrorSet!Geometry {
-        const t = value.Object.get("type").?.String;
+        if (value == null)
+            return Geometry.@"null";
+
+        const v = value.?;
+        if (v != .Object)
+            return Geometry.@"null";
+
+        const t = v.Object.get("type").?.String;
 
         if (std.mem.eql(u8, "Point", t)) {
-            return Geometry{ .point = try parsePoint(value, allocator) };
+            return Geometry{ .point = try parsePoint(v, allocator) };
         } else if (std.mem.eql(u8, "Polygon", t)) {
-            return Geometry{ .polygon = try parsePolygon(value, allocator) };
+            return Geometry{ .polygon = try parsePolygon(v, allocator) };
         } else if (std.mem.eql(u8, "LineString", t)) {
-            return Geometry{ .line_string = try parseLineString(value, allocator) };
+            return Geometry{ .line_string = try parseLineString(v, allocator) };
         } else if (std.mem.eql(u8, "MultiLineString", t)) {
-            return Geometry{ .multi_line_string = try parseMultiLineString(value, allocator) };
+            return Geometry{ .multi_line_string = try parseMultiLineString(v, allocator) };
         } else if (std.mem.eql(u8, "MultiPolygon", t)) {
-            return Geometry{ .multi_polygon = try parseMultiPolygon(value, allocator) };
+            return Geometry{ .multi_polygon = try parseMultiPolygon(v, allocator) };
         } else if (std.mem.eql(u8, "MultiPoint", t)) {
-            return Geometry{ .multi_point = try parseMultiPoint(value, allocator) };
+            return Geometry{ .multi_point = try parseMultiPoint(v, allocator) };
         } else if (std.mem.eql(u8, "GeometryCollection", t)) {
-            return Geometry{ .geometry_collection = try parseGeometryCollection(value, allocator) };
+            return Geometry{ .geometry_collection = try parseGeometryCollection(v, allocator) };
         }
 
         std.log.err(log_tag, "Missing implementation for geometry of type '{}'\n", .{t});
@@ -304,85 +393,6 @@ pub const Parser = struct {
     }
 };
 
-pub const GeoJson = struct {
-    arena: std.heap.ArenaAllocator,
-    bbox: ?BBox,
-    content: union(enum) {
-        empty: void,
-        feature: Feature,
-        feature_collection: FeatureCollection,
-        geometry: Geometry,
-    },
-
-    pub fn feature(self: @This()) ?Feature {
-        if (self.content == .feature) {
-            return self.content.feature;
-        }
-        return null;
-    }
-
-    pub fn featureCollection(self: @This()) ?FeatureCollection {
-        if (self.content == .feature_collection) {
-            return self.content.feature_collection;
-        }
-        return null;
-    }
-
-    pub fn geometry(self: @This()) ?Geometry {
-        if (self.content == .geometry) {
-            return self.content.geometry;
-        }
-        return null;
-    }
-
-    pub fn deinit(self: *GeoJson) void {
-        self.arena.deinit();
-    }
-};
-
-pub const Feature = struct {
-    geometry: Geometry,
-    properties: ?std.StringHashMap(PropertyValue),
-    id: ?Identifier,
-};
-
-pub const FeatureCollection = []Feature;
-
-pub const BBox = struct {
-    min: Point,
-    max: Point,
-};
-
-pub const Geometry = union(enum) {
-    point: Point,
-    line_string: []Point,
-    polygon: Polygon,
-    multi_point: MultiPoint,
-    multi_line_string: MultiLineString,
-    multi_polygon: MultiPolygon,
-    geometry_collection: GeometryCollection,
-};
-
-pub const Point = struct { x: f64, y: f64 };
-pub const MultiPoint = []Point;
-pub const LineString = []Point;
-pub const MultiLineString = []LineString;
-pub const Polygon = [][]Point;
-pub const MultiPolygon = []Polygon;
-pub const GeometryCollection = []Geometry;
-
-pub const PropertyValue = union(enum) {
-    array: []PropertyValue,
-    @"null": void,
-    bool: bool,
-    int: i64,
-    float: f64,
-    string: []const u8,
-    object: std.StringHashMap(PropertyValue),
-};
-
-pub const Identifier = union(enum) {
-    int: i64,
-    float: f64,
-    string: []const u8,
-};
+test "Run tests" {
+    _ = @import("tests.zig");
+}
