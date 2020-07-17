@@ -7,7 +7,6 @@ pub const GeoJson = struct {
     arena: std.heap.ArenaAllocator,
     bbox: ?BBox,
     content: union(enum) {
-        empty: void,
         feature: Feature,
         feature_collection: FeatureCollection,
         geometry: Geometry,
@@ -143,11 +142,7 @@ pub const Parser = struct {
             };
         }
 
-        return GeoJson{
-            .content = .empty,
-            .bbox = bbox,
-            .arena = arena,
-        };
+        return ErrorSet.InvalidGeoJson;
     }
 
     fn parseBoundingBox(value: ?std.json.Value) !?BBox {
