@@ -75,6 +75,8 @@ test "geometries" {
     const json =
         \\{
         \\  "type": "Feature",
+        \\  "bbox": [100.0, 0.0, 103.0, 3.0],
+        \\  "id": 7331,
         \\  "geometry": {
         \\    "type": "GeometryCollection",
         \\    "geometries": [
@@ -159,6 +161,9 @@ test "geometries" {
     var geojson = try Parser.parse(json, std.heap.page_allocator);
     defer geojson.deinit();
 
+    const bbox = BBox{ .min = .{ .x = 100.0, .y = 0.0 }, .max = .{ .x = 103.0, .y = 3.0 } };
+    std.testing.expectEqual(geojson.bbox.?, bbox);
+
     const point = Point{ .x = 100.0, .y = 0.0 };
 
     const lineString = [_]Point{
@@ -220,14 +225,20 @@ test "geometries" {
         },
     };
 
-    for (geojson.feature().?.geometry.geometry_collection) |g| {
+    const id: i64 = 7331;
+
+    const feature = geojson.feature().?;
+
+    std.testing.expectEqual(id, feature.id.?.int);
+
+    for (feature.geometry.geometry_collection) |g| {
         switch (g) {
-            .point => |value| std.testing.expectEqual(value, point),
-            .line_string => |value| std.testing.expectEqualSlices(Point, value, &lineString),
-            .polygon => |value| for (value) |ring, idx| std.testing.expectEqualSlices(Point, ring, &polygon[idx]),
-            .multi_point => |value| std.testing.expectEqualSlices(Point, value, &multiPoint),
-            .multi_line_string => |value| for (value) |lineStr, idx| std.testing.expectEqualSlices(Point, lineStr, &multiLineString[idx]),
-            .multi_polygon => |value| for (value) |poly, pidx| for (poly) |slice, idx| std.testing.expectEqualSlices(Point, slice, &multiPolygon[pidx][idx]),
+            .point => |value| std.testing.expectEqual(point, value),
+            .line_string => |value| std.testing.expectEqualSlices(Point, &lineString, value),
+            .polygon => |value| for (value) |ring, idx| std.testing.expectEqualSlices(Point, &polygon[idx], ring),
+            .multi_point => |value| std.testing.expectEqualSlices(Point, &multiPoint, value),
+            .multi_line_string => |value| for (value) |lineStr, idx| std.testing.expectEqualSlices(Point, &multiLineString[idx], lineStr),
+            .multi_polygon => |value| for (value) |poly, pidx| for (poly) |slice, idx| std.testing.expectEqualSlices(Point, &multiPolygon[pidx][idx], slice),
             else => unreachable,
         }
     }
