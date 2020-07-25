@@ -75,7 +75,7 @@ if (geojson.featureCollection()) |collection| {
     for (collection) |feature, idx| {
         std.debug.warn("{}: It's a {} => ", .{ idx, @tagName(feature.geometry) });
         switch (feature.geometry) {
-            .point => |value| std.debug.warn("[{d}, {d}]\n", .{ value.x, value.y }),
+            .point => |value| std.debug.warn("[{d}, {d}]\n", .{ value[0], value[1] }),
             .multi_point => |value| std.debug.warn("containing {} points\n", .{value.len}),
             .line_string => |value| std.debug.warn("containing {} points\n", .{value.len}),
             .multi_line_string => |value| std.debug.warn("containing {} lineStrings\n", .{value.len}),
