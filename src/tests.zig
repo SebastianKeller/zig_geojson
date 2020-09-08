@@ -9,7 +9,7 @@ test "simple feature" {
         \\  "geometry": {
         \\    "type": "Point",
         \\    "coordinates": [125.6, 10.1]
-        \\  }
+        \\  } 
         \\}
     ;
 
@@ -21,7 +21,7 @@ test "simple feature" {
 
     std.testing.expectEqualStrings(feature.id.?.string, "simple feature");
 
-    std.testing.expectEqual(feature.geometry.point, .{ .x = 125.6, .y = 10.1 });
+    std.testing.expectEqual(feature.geometry.point, Point{ 125.6, 10.1 });
 }
 
 test "properties" {
@@ -161,66 +161,66 @@ test "geometries" {
     var geojson = try Parser.parse(json, std.heap.page_allocator);
     defer geojson.deinit();
 
-    const bbox = BBox{ .min = .{ .x = 100.0, .y = 0.0 }, .max = .{ .x = 103.0, .y = 3.0 } };
+    const bbox = BBox{ .min = .{ 100.0, 0.0 }, .max = .{ 103.0, 3.0 } };
     std.testing.expectEqual(geojson.bbox.?, bbox);
 
-    const point = Point{ .x = 100.0, .y = 0.0 };
+    const point = Point{ 100.0, 0.0 };
 
     const lineString = [_]Point{
-        .{ .x = 101.0, .y = 0.0 },
-        .{ .x = 102.0, .y = 1.0 },
+        .{ 101.0, 0.0 },
+        .{ 102.0, 1.0 },
     };
 
     const polygon = [_][5]Point{
         [_]Point{
-            .{ .x = 100.0, .y = 0.0 },
-            .{ .x = 101.0, .y = 0.0 },
-            .{ .x = 101.0, .y = 1.0 },
-            .{ .x = 100.0, .y = 1.0 },
-            .{ .x = 100.0, .y = 0.0 },
+            .{ 100.0, 0.0 },
+            .{ 101.0, 0.0 },
+            .{ 101.0, 1.0 },
+            .{ 100.0, 1.0 },
+            .{ 100.0, 0.0 },
         },
         [_]Point{
-            .{ .x = 100.8, .y = 0.8 },
-            .{ .x = 100.8, .y = 0.2 },
-            .{ .x = 100.2, .y = 0.2 },
-            .{ .x = 100.2, .y = 0.8 },
-            .{ .x = 100.8, .y = 0.8 },
+            .{ 100.8, 0.8 },
+            .{ 100.8, 0.2 },
+            .{ 100.2, 0.2 },
+            .{ 100.2, 0.8 },
+            .{ 100.8, 0.8 },
         },
     };
 
     const multiPoint = [_]Point{
-        .{ .x = 100.0, .y = 0.0 },
-        .{ .x = 101.0, .y = 1.0 },
+        .{ 100.0, 0.0 },
+        .{ 101.0, 1.0 },
     };
 
     const multiLineString = [_][2]Point{
         [_]Point{
-            .{ .x = 100.0, .y = 0.0 },
-            .{ .x = 101.0, .y = 1.0 },
+            .{ 100.0, 0.0 },
+            .{ 101.0, 1.0 },
         },
         [_]Point{
-            .{ .x = 102.0, .y = 2.0 },
-            .{ .x = 103.0, .y = 3.0 },
+            .{ 102.0, 2.0 },
+            .{ 103.0, 3.0 },
         },
     };
 
     const multiPolygon = [_][1][5]Point{
         [1][5]Point{
             [_]Point{
-                .{ .x = 102.0, .y = 2.0 },
-                .{ .x = 103.0, .y = 2.0 },
-                .{ .x = 103.0, .y = 3.0 },
-                .{ .x = 102.0, .y = 3.0 },
-                .{ .x = 102.0, .y = 2.0 },
+                .{ 102.0, 2.0 },
+                .{ 103.0, 2.0 },
+                .{ 103.0, 3.0 },
+                .{ 102.0, 3.0 },
+                .{ 102.0, 2.0 },
             },
         },
         [1][5]Point{
             [_]Point{
-                .{ .x = 100.0, .y = 0.0 },
-                .{ .x = 101.0, .y = 0.0 },
-                .{ .x = 101.0, .y = 1.0 },
-                .{ .x = 100.0, .y = 1.0 },
-                .{ .x = 100.0, .y = 0.0 },
+                .{ 100.0, 0.0 },
+                .{ 101.0, 0.0 },
+                .{ 101.0, 1.0 },
+                .{ 100.0, 1.0 },
+                .{ 100.0, 0.0 },
             },
         },
     };

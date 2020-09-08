@@ -1,7 +1,7 @@
 const std = @import("std");
 
-pub const ErrorSet = error{InvalidGeoJson} || @TypeOf(std.json.Parser.parse).ReturnType.ErrorSet;
-const log_tag = .zig_geojson;
+pub const ErrorSet = error{InvalidGeoJson} || std.mem.Allocator.Error || std.json.TokenStream.Error || std.fmt.ParseIntError;
+const log = std.log.scoped(.zig_geojson);
 
 pub const GeoJson = struct {
     arena: std.heap.ArenaAllocator,
@@ -62,7 +62,7 @@ pub const Geometry = union(enum) {
     geometry_collection: GeometryCollection,
 };
 
-pub const Point = struct { x: f64, y: f64 };
+pub const Point = [2]f64;
 pub const MultiPoint = []Point;
 pub const LineString = []Point;
 pub const MultiLineString = []LineString;
@@ -96,7 +96,7 @@ pub const Parser = struct {
         defer json_parser.deinit();
 
         var json = json_parser.parse(json_text) catch |err| {
-            std.log.err(log_tag, "Unable to parse json\n", .{});
+            log.err("Unable to parse json\n", .{});
             return err;
         };
         defer json.deinit();
@@ -150,12 +150,12 @@ pub const Parser = struct {
             const json_array = v.Array;
             return BBox{
                 .min = Point{
-                    .x = try parseFloat(json_array.items[0]),
-                    .y = try parseFloat(json_array.items[1]),
+                    try parseFloat(json_array.items[0]),
+                    try parseFloat(json_array.items[1]),
                 },
                 .max = Point{
-                    .x = try parseFloat(json_array.items[2]),
-                    .y = try parseFloat(json_array.items[3]),
+                    try parseFloat(json_array.items[2]),
+                    try parseFloat(json_array.items[3]),
                 },
             };
         }
@@ -228,7 +228,8 @@ pub const Parser = struct {
             },
             .Object => |o| {
                 var hashmap = std.StringHashMap(PropertyValue).init(allocator);
-                for (o.items()) |kv| {
+                var iterator = o.iterator();
+                while (iterator.next()) |kv| {
                     const pValue = try parsePropertiesValue(kv.value, allocator);
                     try hashmap.put(kv.key, pValue);
                 }
@@ -266,7 +267,7 @@ pub const Parser = struct {
             return Geometry{ .geometry_collection = try parseGeometryCollection(v, allocator) };
         }
 
-        std.log.err(log_tag, "Missing implementation for geometry of type '{}'\n", .{t});
+        log.err("Missing implementation for geometry of type '{}'\n", .{t});
         return ErrorSet.InvalidGeoJson;
     }
 
@@ -371,7 +372,7 @@ pub const Parser = struct {
         const first = array.items[0];
         const second = array.items[1];
 
-        return Point{ .x = try parseFloat(first), .y = try parseFloat(second) };
+        return Point{ try parseFloat(first), try parseFloat(second) };
     }
 
     inline fn parseFloat(
@@ -381,7 +382,7 @@ pub const Parser = struct {
             .Integer => @intToFloat(f64, value.Integer),
             .Float => value.Float,
             else => {
-                std.log.err(log_tag, "Invalid geojson. Expected Integer or Float, actual {}\n", .{value});
+                log.err("Invalid geojson. Expected Integer or Float, actual {}\n", .{value});
                 return ErrorSet.InvalidGeoJson;
             },
         };
