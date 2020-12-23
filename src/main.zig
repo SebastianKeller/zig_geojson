@@ -62,7 +62,7 @@ pub const Geometry = union(enum) {
     geometry_collection: GeometryCollection,
 };
 
-pub const Point = [2]f64;
+pub const Point = [2]f32;
 pub const MultiPoint = []Point;
 pub const LineString = []Point;
 pub const MultiLineString = []LineString;
@@ -377,10 +377,10 @@ pub const Parser = struct {
 
     inline fn parseFloat(
         value: std.json.Value,
-    ) ErrorSet!f64 {
+    ) ErrorSet!f32 {
         return switch (value) {
-            .Integer => @intToFloat(f64, value.Integer),
-            .Float => value.Float,
+            .Integer => @intToFloat(f32, value.Integer),
+            .Float => @floatCast(f32, value.Float),
             else => {
                 log.err("Invalid geojson. Expected Integer or Float, actual {}\n", .{value});
                 return ErrorSet.InvalidGeoJson;
