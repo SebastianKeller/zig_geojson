@@ -55,7 +55,7 @@ const json =
     \\}
 ;
 
-var geojson = Parser.parse(json, std.heap.page_allocator) catch |err| {
+var geojson = Parser.parse(json, std.testing.allocator) catch |err| {
     std.debug.warn("Could not parse geojson! {}", .{err});
     return;
 };
@@ -73,7 +73,7 @@ if (geojson.featureCollection()) |collection| {
     std.debug.warn("FeatureCollection contains {} features\n", .{collection.len});
 
     for (collection) |feature, idx| {
-        std.debug.warn("{}: It's a {} => ", .{ idx, @tagName(feature.geometry) });
+        std.debug.warn("{}: It's a {s} => ", .{ idx, @tagName(feature.geometry) });
         switch (feature.geometry) {
             .point => |value| std.debug.warn("[{d}, {d}]\n", .{ value[0], value[1] }),
             .multi_point => |value| std.debug.warn("containing {} points\n", .{value.len}),
@@ -98,7 +98,6 @@ if (geojson.featureCollection()) |collection| {
     const value = collection[1].properties.?.get("prop1").?;
     std.debug.warn("Property: 'prop1' => {}\n", .{value});
 }
-
 ```
 
 This will print
