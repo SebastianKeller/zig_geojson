@@ -1,6 +1,6 @@
 # zig_geojson
 
-`zig_geojson` is a zig library for dealing with geojson.
+A library for parsing [GeoJSON](http://geojson.org) in zig.
 
 ## Example
 ```zig
