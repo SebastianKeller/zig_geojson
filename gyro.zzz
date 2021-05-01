@@ -1,0 +1,10 @@
+pkgs:
+  zig_geojson:
+    version: 0.0.0
+    license: MIT
+    source_url: "https://github.com/SebastianKeller/zig_geojson"
+
+    root: src/main.zig
+    files:
+      README.md
+      LICENSE
