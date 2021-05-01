@@ -100,8 +100,6 @@ if (geojson.featureCollection()) |collection| {
 }
 ```
 
-This will print
-
 ```
 It's a FeatureCollection!
 FeatureCollection contains 3 features
