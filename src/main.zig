@@ -218,6 +218,7 @@ pub const Parser = struct {
             .Integer => |i| return PropertyValue{ .int = i },
             .Float => |f| return PropertyValue{ .float = f },
             .String => |s| return PropertyValue{ .string = try std.mem.dupe(allocator, u8, s) },
+            .NumberString => |s| return PropertyValue{ .string = try std.mem.dupe(allocator, u8, s) },
             .Array => |arr| {
                 const array = try allocator.alloc(PropertyValue, arr.items.len);
                 for (arr.items) |item, idx| {
@@ -267,7 +268,7 @@ pub const Parser = struct {
             return Geometry{ .geometry_collection = try parseGeometryCollection(v, allocator) };
         }
 
-        log.err("Missing implementation for geometry of type '{}'\n", .{t});
+        log.err("Missing implementation for geometry of type '{s}'\n", .{t});
         return ErrorSet.InvalidGeoJson;
     }
 
@@ -343,7 +344,7 @@ pub const Parser = struct {
         return geometries;
     }
 
-    inline fn parsePolygonRaw(
+    fn parsePolygonRaw(
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) !Polygon {
@@ -355,7 +356,7 @@ pub const Parser = struct {
         return rings;
     }
 
-    inline fn parsePoints(
+    fn parsePoints(
         value: std.json.Value,
         allocator: *std.mem.Allocator,
     ) ![]Point {
@@ -367,7 +368,7 @@ pub const Parser = struct {
         return points;
     }
 
-    inline fn parsePointRaw(value: std.json.Value) !Point {
+    fn parsePointRaw(value: std.json.Value) !Point {
         const array = value.Array;
         const first = array.items[0];
         const second = array.items[1];
@@ -375,7 +376,7 @@ pub const Parser = struct {
         return Point{ try parseFloat(first), try parseFloat(second) };
     }
 
-    inline fn parseFloat(
+    fn parseFloat(
         value: std.json.Value,
     ) ErrorSet!f32 {
         return switch (value) {
