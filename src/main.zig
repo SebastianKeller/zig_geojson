@@ -231,8 +231,8 @@ pub const Parser = struct {
                 var hashmap = std.StringHashMap(PropertyValue).init(allocator);
                 var iterator = o.iterator();
                 while (iterator.next()) |kv| {
-                    const pValue = try parsePropertiesValue(kv.value, allocator);
-                    try hashmap.put(kv.key, pValue);
+                    const pValue = try parsePropertiesValue(kv.value_ptr.*, allocator);
+                    try hashmap.put(kv.key_ptr.*, pValue);
                 }
                 return PropertyValue{ .object = hashmap };
             },

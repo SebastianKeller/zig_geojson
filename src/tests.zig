@@ -16,12 +16,11 @@ test "simple feature" {
     var geojson = try Parser.parse(json, std.testing.allocator);
     defer geojson.deinit();
 
-    std.testing.expect(geojson.content == .feature);
+    try std.testing.expect(geojson.content == .feature);
     const feature = geojson.feature().?;
 
-    std.testing.expectEqualStrings(feature.id.?.string, "simple feature");
-
-    std.testing.expectEqual(feature.geometry.point, Point{ 125.6, 10.1 });
+    try std.testing.expectEqualStrings(feature.id.?.string, "simple feature");
+    try std.testing.expectEqual(feature.geometry.point, Point{ 125.6, 10.1 });
 }
 
 test "properties" {
@@ -51,24 +50,24 @@ test "properties" {
     var geojson = try Parser.parse(json, std.testing.allocator);
     defer geojson.deinit();
 
-    std.testing.expect(geojson.feature() != null);
+    try std.testing.expect(geojson.feature() != null);
     const feature = geojson.feature().?;
 
-    std.testing.expect(feature.properties != null);
+    try std.testing.expect(feature.properties != null);
     const properties = feature.properties.?;
 
-    std.testing.expectEqualStrings(properties.get("stringProp").?.string, "stringValue");
-    std.testing.expectEqual(properties.get("floatProp").?.float, 1234.567);
-    std.testing.expectEqual(properties.get("integerProp").?.int, 89);
+    try std.testing.expectEqualStrings(properties.get("stringProp").?.string, "stringValue");
+    try std.testing.expectEqual(properties.get("floatProp").?.float, 1234.567);
+    try std.testing.expectEqual(properties.get("integerProp").?.int, 89);
 
     const object = properties.get("objectProp").?.object;
-    std.testing.expectEqualStrings(object.get("innerString").?.string, "innerStringValue");
+    try std.testing.expectEqualStrings(object.get("innerString").?.string, "innerStringValue");
 
     const array = properties.get("arrayProp").?.array;
-    std.testing.expectEqualStrings(array[0].string, "stringValue");
-    std.testing.expectEqual(array[1].float, 1234.567);
-    std.testing.expectEqual(array[2].int, 89);
-    std.testing.expectEqualStrings(array[3].object.get("innerString").?.string, "innerStringValue");
+    try std.testing.expectEqualStrings(array[0].string, "stringValue");
+    try std.testing.expectEqual(array[1].float, 1234.567);
+    try std.testing.expectEqual(array[2].int, 89);
+    try std.testing.expectEqualStrings(array[3].object.get("innerString").?.string, "innerStringValue");
 }
 
 test "geometries" {
@@ -162,7 +161,7 @@ test "geometries" {
     defer geojson.deinit();
 
     const bbox = BBox{ .min = .{ 100.0, 0.0 }, .max = .{ 103.0, 3.0 } };
-    std.testing.expectEqual(geojson.bbox.?, bbox);
+    try std.testing.expectEqual(geojson.bbox.?, bbox);
 
     const point = Point{ 100.0, 0.0 };
 
@@ -229,16 +228,16 @@ test "geometries" {
 
     const feature = geojson.feature().?;
 
-    std.testing.expectEqual(id, feature.id.?.int);
+    try std.testing.expectEqual(id, feature.id.?.int);
 
     for (feature.geometry.geometry_collection) |g| {
         switch (g) {
-            .point => |value| std.testing.expectEqual(point, value),
-            .line_string => |value| std.testing.expectEqualSlices(Point, &lineString, value),
-            .polygon => |value| for (value) |ring, idx| std.testing.expectEqualSlices(Point, &polygon[idx], ring),
-            .multi_point => |value| std.testing.expectEqualSlices(Point, &multiPoint, value),
-            .multi_line_string => |value| for (value) |lineStr, idx| std.testing.expectEqualSlices(Point, &multiLineString[idx], lineStr),
-            .multi_polygon => |value| for (value) |poly, pidx| for (poly) |slice, idx| std.testing.expectEqualSlices(Point, &multiPolygon[pidx][idx], slice),
+            .point => |value| try std.testing.expectEqual(point, value),
+            .line_string => |value| try std.testing.expectEqualSlices(Point, &lineString, value),
+            .polygon => |value| for (value) |ring, idx| try std.testing.expectEqualSlices(Point, &polygon[idx], ring),
+            .multi_point => |value| try std.testing.expectEqualSlices(Point, &multiPoint, value),
+            .multi_line_string => |value| for (value) |lineStr, idx| try std.testing.expectEqualSlices(Point, &multiLineString[idx], lineStr),
+            .multi_polygon => |value| for (value) |poly, pidx| for (poly) |slice, idx| try std.testing.expectEqualSlices(Point, &multiPolygon[pidx][idx], slice),
             else => unreachable,
         }
     }
