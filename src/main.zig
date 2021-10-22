@@ -253,7 +253,7 @@ pub const Parser = struct {
         const t = v.Object.get("type").?.String;
 
         if (std.mem.eql(u8, "Point", t)) {
-            return Geometry{ .point = try parsePoint(v, allocator) };
+            return Geometry{ .point = try parsePoint(v) };
         } else if (std.mem.eql(u8, "Polygon", t)) {
             return Geometry{ .polygon = try parsePolygon(v, allocator) };
         } else if (std.mem.eql(u8, "LineString", t)) {
@@ -274,7 +274,6 @@ pub const Parser = struct {
 
     fn parsePoint(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
     ) !Point {
         const coordinates = value.Object.get("coordinates").?;
         return parsePointRaw(coordinates);
@@ -389,7 +388,3 @@ pub const Parser = struct {
         };
     }
 };
-
-test "Run tests" {
-    _ = @import("tests.zig");
-}

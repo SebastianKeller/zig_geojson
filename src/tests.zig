@@ -1,5 +1,9 @@
 const std = @import("std");
-usingnamespace @import("main.zig");
+
+const zig_geojson = @import("main.zig");
+const Parser = zig_geojson.Parser;
+const BBox = zig_geojson.Parser;
+const Point = zig_geojson.Point;
 
 test "simple feature" {
     const json =
