@@ -90,7 +90,7 @@ pub const Identifier = union(enum) {
 pub const Parser = struct {
     pub fn parse(
         json_text: []const u8,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) ErrorSet!GeoJson {
         var json_parser = std.json.Parser.init(allocator, false);
         defer json_parser.deinit();
@@ -106,12 +106,12 @@ pub const Parser = struct {
 
     pub fn parseJson(
         json: std.json.ValueTree,
-        child_allocator: *std.mem.Allocator,
+        child_allocator: std.mem.Allocator,
     ) ErrorSet!GeoJson {
         const root = json.root;
 
         var arena = std.heap.ArenaAllocator.init(child_allocator);
-        const allocator = &arena.allocator;
+        const allocator = arena.allocator();
 
         const bbox = try parseBoundingBox(root.Object.get("bbox"));
 
@@ -164,7 +164,7 @@ pub const Parser = struct {
 
     fn parseFeatures(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) ![]Feature {
         const json_array = value.Array;
         const features = try allocator.alloc(Feature, json_array.items.len);
@@ -176,7 +176,7 @@ pub const Parser = struct {
 
     fn parseFeature(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !Feature {
         const geometry = try parseGeometry(value.Object.get("geometry"), allocator);
         const properties = if (value.Object.get("properties")) |p| try parseProperties(p, allocator) else null;
@@ -191,7 +191,7 @@ pub const Parser = struct {
 
     fn parseIdentifier(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !Identifier {
         return switch (value) {
             .String => |s| Identifier{ .string = try std.mem.dupe(allocator, u8, s) },
@@ -203,14 +203,14 @@ pub const Parser = struct {
 
     fn parseProperties(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !std.StringHashMap(PropertyValue) {
         return (try parsePropertiesValue(value, allocator)).object;
     }
 
     fn parsePropertiesValue(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) ErrorSet!PropertyValue {
         switch (value) {
             .Null => return PropertyValue.@"null",
@@ -241,7 +241,7 @@ pub const Parser = struct {
 
     fn parseGeometry(
         value: ?std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) ErrorSet!Geometry {
         if (value == null)
             return Geometry.@"null";
@@ -281,7 +281,7 @@ pub const Parser = struct {
 
     fn parseMultiPoint(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !MultiPoint {
         const coordinates = value.Object.get("coordinates").?;
         return try parsePoints(coordinates, allocator);
@@ -289,7 +289,7 @@ pub const Parser = struct {
 
     fn parsePolygon(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !Polygon {
         const coordinates = value.Object.get("coordinates").?.Array;
         const rings = try allocator.alloc([]Point, coordinates.items.len);
@@ -301,7 +301,7 @@ pub const Parser = struct {
 
     fn parseMultiPolygon(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !MultiPolygon {
         const coordinates = value.Object.get("coordinates").?.Array;
         const polygons = try allocator.alloc(Polygon, coordinates.items.len);
@@ -313,7 +313,7 @@ pub const Parser = struct {
 
     fn parseLineString(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !LineString {
         const coordinates = value.Object.get("coordinates").?;
         return try parsePoints(coordinates, allocator);
@@ -321,7 +321,7 @@ pub const Parser = struct {
 
     fn parseMultiLineString(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !MultiLineString {
         const coordinates = value.Object.get("coordinates").?.Array;
         const lineStrings = try allocator.alloc([]Point, coordinates.items.len);
@@ -333,7 +333,7 @@ pub const Parser = struct {
 
     fn parseGeometryCollection(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !GeometryCollection {
         const array = value.Object.get("geometries").?.Array;
         const geometries = try allocator.alloc(Geometry, array.items.len);
@@ -345,7 +345,7 @@ pub const Parser = struct {
 
     fn parsePolygonRaw(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) !Polygon {
         const array = value.Array;
         const rings = try allocator.alloc([]Point, array.items.len);
@@ -357,7 +357,7 @@ pub const Parser = struct {
 
     fn parsePoints(
         value: std.json.Value,
-        allocator: *std.mem.Allocator,
+        allocator: std.mem.Allocator,
     ) ![]Point {
         const array = value.Array;
         const points = try allocator.alloc(Point, array.items.len);
