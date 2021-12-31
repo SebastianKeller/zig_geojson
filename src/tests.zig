@@ -2,7 +2,7 @@ const std = @import("std");
 
 const zig_geojson = @import("main.zig");
 const Parser = zig_geojson.Parser;
-const BBox = zig_geojson.Parser;
+const BBox = zig_geojson.BBox;
 const Point = zig_geojson.Point;
 
 test "simple feature" {
