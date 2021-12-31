@@ -61,9 +61,9 @@ pub fn main() void {
 
     // switch on the content if you don't already know the type
     switch (geojson.content) {
-        .feature => |feature| std.debug.warn("It's a Feature!\n", .{}),
-        .feature_collection => |features| std.debug.warn("It's a FeatureCollection!\n", .{}),
-        .geometry => |geometry| std.debug.warn("It's a Geometry!\n", .{}),
+        .feature => std.debug.warn("It's a Feature!\n", .{}),
+        .feature_collection => std.debug.warn("It's a FeatureCollection!\n", .{}),
+        .geometry => std.debug.warn("It's a Geometry!\n", .{}),
     }
 
     // there are helper methods `featureCollection()`, `feature()`, and `geometry()`, returning optionals
