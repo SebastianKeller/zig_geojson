@@ -161,7 +161,7 @@ test "geometries" {
         \\}
     ;
 
-    var geojson = try Parser.parse(json, std.heap.page_allocator);
+    var geojson = try Parser.parse(json, std.testing.allocator);
     defer geojson.deinit();
 
     const bbox = BBox{ .min = .{ 100.0, 0.0 }, .max = .{ 103.0, 3.0 } };
