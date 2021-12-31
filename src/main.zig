@@ -194,7 +194,7 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
     ) !Identifier {
         return switch (value) {
-            .String => |s| Identifier{ .string = try std.mem.dupe(allocator, u8, s) },
+            .String => |s| Identifier{ .string = try allocator.dupe(u8, s) },
             .Integer => |i| Identifier{ .int = i },
             .Float => |f| Identifier{ .float = f },
             else => error.InvalidGeoJson,
@@ -217,8 +217,8 @@ pub const Parser = struct {
             .Bool => |b| return PropertyValue{ .bool = b },
             .Integer => |i| return PropertyValue{ .int = i },
             .Float => |f| return PropertyValue{ .float = f },
-            .String => |s| return PropertyValue{ .string = try std.mem.dupe(allocator, u8, s) },
-            .NumberString => |s| return PropertyValue{ .string = try std.mem.dupe(allocator, u8, s) },
+            .String => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
+            .NumberString => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
             .Array => |arr| {
                 const array = try allocator.alloc(PropertyValue, arr.items.len);
                 for (arr.items) |item, idx| {
