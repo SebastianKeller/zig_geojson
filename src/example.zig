@@ -61,25 +61,24 @@ pub fn main() void {
 
     // switch on the content if you don't already know the type
     switch (geojson.content) {
-        .feature => std.log.debug("It's a Feature!\n", .{}),
-        .feature_collection => std.log.debug("It's a FeatureCollection!\n", .{}),
-        .geometry => std.log.debug("It's a Geometry!\n", .{}),
+        .feature => std.log.debug("It's a Feature!", .{}),
+        .feature_collection => std.log.debug("It's a FeatureCollection!", .{}),
+        .geometry => std.log.debug("It's a Geometry!", .{}),
     }
 
     // there are helper methods `featureCollection()`, `feature()`, and `geometry()`, returning optionals
     if (geojson.featureCollection()) |collection| {
-        std.log.debug("FeatureCollection contains {} features\n", .{collection.len});
+        std.log.debug("FeatureCollection contains {} features", .{collection.len});
 
         for (collection) |feature, idx| {
-            std.log.debug("{}: It's a {s} => ", .{ idx, @tagName(feature.geometry) });
             switch (feature.geometry) {
-                .point => |value| std.log.debug("[{d}, {d}]\n", .{ value[0], value[1] }),
-                .multi_point => |value| std.log.debug("containing {} points\n", .{value.len}),
-                .line_string => |value| std.log.debug("containing {} points\n", .{value.len}),
-                .multi_line_string => |value| std.log.debug("containing {} lineStrings\n", .{value.len}),
-                .polygon => |value| std.log.debug("containing {} rings\n", .{value.len}),
-                .multi_polygon => |value| std.log.debug("containing {} polygons\n", .{value.len}),
-                .geometry_collection => |value| std.log.debug("containing {} geometries\n", .{value.len}),
+                .point => |value| std.log.debug("{}: It's a Point! {d:.1}", .{ idx, value }),
+                .multi_point => |value| std.log.debug("{}: It's a MultiPoint! {d:.1}", .{idx, value}),
+                .line_string => |value| std.log.debug("{}: It's a LineString! {d:.1}", .{idx, value}),
+                .multi_line_string => |value| std.log.debug("{}: It's a MultiLineString! {d:.1}", .{idx, value}),
+                .polygon => |value| std.log.debug("{}: It's a Polygon! {d:.1}", .{idx, value}),
+                .multi_polygon => |value| std.log.debug("{}: It's a MultiPolygon! {d:.1}", .{idx, value}),
+                .geometry_collection => |value| std.log.debug("{}: It's a GeometryCollection! {d:.1}", .{idx, value}),
                 .@"null" => continue,
             }
         }
@@ -88,12 +87,12 @@ pub fn main() void {
         const feature = collection[0];
         if (feature.properties) |properties| {
             if (properties.get("prop0")) |value| {
-                std.log.debug("Property: 'prop0' => {}\n", .{value});
+                std.log.debug("Property: 'prop0' => {}", .{value});
             }
         }
 
         // or unsafe
         const value = collection[1].properties.?.get("prop1").?;
-        std.log.debug("Property: 'prop1' => {}\n", .{value});
+        std.log.debug("Property: 'prop1' => {}", .{value});
     }
 }
