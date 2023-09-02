@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const zig_geojson = @import("main.zig");
+const zig_geojson = @import("zig_geojson");
 const Parser = zig_geojson.Parser;
 const BBox = zig_geojson.BBox;
 const Point = zig_geojson.Point;
