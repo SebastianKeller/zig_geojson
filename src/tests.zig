@@ -238,10 +238,10 @@ test "geometries" {
         switch (g) {
             .point => |value| try std.testing.expectEqual(point, value),
             .line_string => |value| try std.testing.expectEqualSlices(Point, &lineString, value),
-            .polygon => |value| for (value) |ring, idx| try std.testing.expectEqualSlices(Point, &polygon[idx], ring),
+            .polygon => |value| for (value, 0..) |ring, idx| try std.testing.expectEqualSlices(Point, &polygon[idx], ring),
             .multi_point => |value| try std.testing.expectEqualSlices(Point, &multiPoint, value),
-            .multi_line_string => |value| for (value) |lineStr, idx| try std.testing.expectEqualSlices(Point, &multiLineString[idx], lineStr),
-            .multi_polygon => |value| for (value) |poly, pidx| for (poly) |slice, idx| try std.testing.expectEqualSlices(Point, &multiPolygon[pidx][idx], slice),
+            .multi_line_string => |value| for (value, 0..) |lineStr, idx| try std.testing.expectEqualSlices(Point, &multiLineString[idx], lineStr),
+            .multi_polygon => |value| for (value, 0..) |poly, pidx| for (poly, 0..) |slice, idx| try std.testing.expectEqualSlices(Point, &multiPolygon[pidx][idx], slice),
             else => unreachable,
         }
     }

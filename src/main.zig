@@ -1,6 +1,6 @@
 const std = @import("std");
 
-pub const ErrorSet = error{InvalidGeoJson} || std.mem.Allocator.Error || std.json.TokenStream.Error || std.fmt.ParseIntError;
+pub const ErrorSet = error{InvalidGeoJson} || std.mem.Allocator.Error || std.fmt.ParseIntError || std.json.ParseError(std.json.Scanner);
 const log = std.log.scoped(.zig_geojson);
 
 pub const GeoJson = struct {
@@ -52,7 +52,7 @@ pub const Feature = struct {
 pub const FeatureCollection = []Feature;
 
 pub const Geometry = union(enum) {
-    @"null": void,
+    null: void,
     point: Point,
     line_string: []Point,
     polygon: Polygon,
@@ -73,7 +73,7 @@ pub const GeometryCollection = []Geometry;
 
 pub const PropertyValue = union(enum) {
     array: []PropertyValue,
-    @"null": void,
+    null: void,
     bool: bool,
     int: i64,
     float: f64,
@@ -92,31 +92,22 @@ pub const Parser = struct {
         json_text: []const u8,
         allocator: std.mem.Allocator,
     ) ErrorSet!GeoJson {
-        var json_parser = std.json.Parser.init(allocator, false);
-        defer json_parser.deinit();
-
-        var json = json_parser.parse(json_text) catch |err| {
-            log.err("Unable to parse json\n", .{});
-            return err;
-        };
-        defer json.deinit();
-
-        return parseJson(json, allocator);
+        var parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_text, .{});
+        defer parsed.deinit();
+        return parseJson(parsed.value, allocator);
     }
 
     pub fn parseJson(
-        json: std.json.ValueTree,
+        root: std.json.Value,
         child_allocator: std.mem.Allocator,
     ) ErrorSet!GeoJson {
-        const root = json.root;
-
         var arena = std.heap.ArenaAllocator.init(child_allocator);
         const allocator = arena.allocator();
 
-        const bbox = try parseBoundingBox(root.Object.get("bbox"));
+        const bbox = try parseBoundingBox(root.object.get("bbox"));
 
-        if (root.Object.get("type")) |contentType| {
-            const t = contentType.String;
+        if (root.object.get("type")) |contentType| {
+            const t = contentType.string;
             if (std.mem.eql(u8, "Feature", t)) {
                 return GeoJson{
                     .content = .{ .feature = try parseFeature(root, allocator) },
@@ -126,7 +117,7 @@ pub const Parser = struct {
             }
 
             if (std.mem.eql(u8, "FeatureCollection", t)) {
-                const features = root.Object.get("features").?;
+                const features = root.object.get("features").?;
                 return GeoJson{
                     .content = .{ .feature_collection = try parseFeatures(features, allocator) },
                     .bbox = bbox,
@@ -147,7 +138,7 @@ pub const Parser = struct {
 
     fn parseBoundingBox(value: ?std.json.Value) !?BBox {
         if (value) |v| {
-            const json_array = v.Array;
+            const json_array = v.array;
             return BBox{
                 .min = Point{
                     try parseFloat(json_array.items[0]),
@@ -166,9 +157,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) ![]Feature {
-        const json_array = value.Array;
+        const json_array = value.array;
         const features = try allocator.alloc(Feature, json_array.items.len);
-        for (json_array.items) |item, idx| {
+        for (json_array.items, 0..) |item, idx| {
             features[idx] = try parseFeature(item, allocator);
         }
         return features;
@@ -178,9 +169,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !Feature {
-        const geometry = try parseGeometry(value.Object.get("geometry"), allocator);
-        const properties = if (value.Object.get("properties")) |p| try parseProperties(p, allocator) else null;
-        const id = if (value.Object.get("id")) |id| try parseIdentifier(id, allocator) else null;
+        const geometry = try parseGeometry(value.object.get("geometry"), allocator);
+        const properties = if (value.object.get("properties")) |p| try parseProperties(p, allocator) else null;
+        const id = if (value.object.get("id")) |id| try parseIdentifier(id, allocator) else null;
 
         return Feature{
             .geometry = geometry,
@@ -194,9 +185,9 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
     ) !Identifier {
         return switch (value) {
-            .String => |s| Identifier{ .string = try allocator.dupe(u8, s) },
-            .Integer => |i| Identifier{ .int = i },
-            .Float => |f| Identifier{ .float = f },
+            .string => |s| Identifier{ .string = try allocator.dupe(u8, s) },
+            .integer => |i| Identifier{ .int = i },
+            .float => |f| Identifier{ .float = f },
             else => error.InvalidGeoJson,
         };
     }
@@ -213,21 +204,21 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
     ) ErrorSet!PropertyValue {
         switch (value) {
-            .Null => return PropertyValue.@"null",
-            .Bool => |b| return PropertyValue{ .bool = b },
-            .Integer => |i| return PropertyValue{ .int = i },
-            .Float => |f| return PropertyValue{ .float = f },
-            .String => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
-            .NumberString => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
-            .Array => |arr| {
+            .null => return PropertyValue.null,
+            .bool => |b| return PropertyValue{ .bool = b },
+            .integer => |i| return PropertyValue{ .int = i },
+            .float => |f| return PropertyValue{ .float = f },
+            .string => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
+            .number_string => |s| return PropertyValue{ .string = try allocator.dupe(u8, s) },
+            .array => |arr| {
                 const array = try allocator.alloc(PropertyValue, arr.items.len);
-                for (arr.items) |item, idx| {
+                for (arr.items, 0..) |item, idx| {
                     const pValue = try parsePropertiesValue(item, allocator);
                     array[idx] = pValue;
                 }
                 return PropertyValue{ .array = array };
             },
-            .Object => |o| {
+            .object => |o| {
                 var hashmap = std.StringHashMap(PropertyValue).init(allocator);
                 var iterator = o.iterator();
                 while (iterator.next()) |kv| {
@@ -244,13 +235,13 @@ pub const Parser = struct {
         allocator: std.mem.Allocator,
     ) ErrorSet!Geometry {
         if (value == null)
-            return Geometry.@"null";
+            return Geometry.null;
 
         const v = value.?;
-        if (v != .Object)
-            return Geometry.@"null";
+        if (v != .object)
+            return Geometry.null;
 
-        const t = v.Object.get("type").?.String;
+        const t = v.object.get("type").?.string;
 
         if (std.mem.eql(u8, "Point", t)) {
             return Geometry{ .point = try parsePoint(v) };
@@ -275,7 +266,7 @@ pub const Parser = struct {
     fn parsePoint(
         value: std.json.Value,
     ) !Point {
-        const coordinates = value.Object.get("coordinates").?;
+        const coordinates = value.object.get("coordinates").?;
         return parsePointRaw(coordinates);
     }
 
@@ -283,7 +274,7 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !MultiPoint {
-        const coordinates = value.Object.get("coordinates").?;
+        const coordinates = value.object.get("coordinates").?;
         return try parsePoints(coordinates, allocator);
     }
 
@@ -291,9 +282,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !Polygon {
-        const coordinates = value.Object.get("coordinates").?.Array;
+        const coordinates = value.object.get("coordinates").?.array;
         const rings = try allocator.alloc([]Point, coordinates.items.len);
-        for (coordinates.items) |item, idx| {
+        for (coordinates.items, 0..) |item, idx| {
             rings[idx] = try parsePoints(item, allocator);
         }
         return rings;
@@ -303,9 +294,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !MultiPolygon {
-        const coordinates = value.Object.get("coordinates").?.Array;
+        const coordinates = value.object.get("coordinates").?.array;
         const polygons = try allocator.alloc(Polygon, coordinates.items.len);
-        for (coordinates.items) |item, idx| {
+        for (coordinates.items, 0..) |item, idx| {
             polygons[idx] = try parsePolygonRaw(item, allocator);
         }
         return polygons;
@@ -315,7 +306,7 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !LineString {
-        const coordinates = value.Object.get("coordinates").?;
+        const coordinates = value.object.get("coordinates").?;
         return try parsePoints(coordinates, allocator);
     }
 
@@ -323,9 +314,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !MultiLineString {
-        const coordinates = value.Object.get("coordinates").?.Array;
+        const coordinates = value.object.get("coordinates").?.array;
         const lineStrings = try allocator.alloc([]Point, coordinates.items.len);
-        for (coordinates.items) |item, idx| {
+        for (coordinates.items, 0..) |item, idx| {
             lineStrings[idx] = try parsePoints(item, allocator);
         }
         return lineStrings;
@@ -335,9 +326,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !GeometryCollection {
-        const array = value.Object.get("geometries").?.Array;
+        const array = value.object.get("geometries").?.array;
         const geometries = try allocator.alloc(Geometry, array.items.len);
-        for (array.items) |item, idx| {
+        for (array.items, 0..) |item, idx| {
             geometries[idx] = try parseGeometry(item, allocator);
         }
         return geometries;
@@ -347,9 +338,9 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) !Polygon {
-        const array = value.Array;
+        const array = value.array;
         const rings = try allocator.alloc([]Point, array.items.len);
-        for (array.items) |item, idx| {
+        for (array.items, 0..) |item, idx| {
             rings[idx] = try parsePoints(item, allocator);
         }
         return rings;
@@ -359,16 +350,16 @@ pub const Parser = struct {
         value: std.json.Value,
         allocator: std.mem.Allocator,
     ) ![]Point {
-        const array = value.Array;
+        const array = value.array;
         const points = try allocator.alloc(Point, array.items.len);
-        for (array.items) |json, idx| {
+        for (array.items, 0..) |json, idx| {
             points[idx] = try parsePointRaw(json);
         }
         return points;
     }
 
     fn parsePointRaw(value: std.json.Value) !Point {
-        const array = value.Array;
+        const array = value.array;
         const first = array.items[0];
         const second = array.items[1];
 
@@ -379,8 +370,8 @@ pub const Parser = struct {
         value: std.json.Value,
     ) ErrorSet!f32 {
         return switch (value) {
-            .Integer => @intToFloat(f32, value.Integer),
-            .Float => @floatCast(f32, value.Float),
+            .integer => @as(f32, @floatFromInt(value.integer)),
+            .float => @as(f32, @floatCast(value.float)),
             else => {
                 log.err("Invalid geojson. Expected Integer or Float, actual {}\n", .{value});
                 return ErrorSet.InvalidGeoJson;
